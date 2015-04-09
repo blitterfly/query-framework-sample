@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<!--
+	Written by Havi Sullivan <http://havisullivan.com>
+	HTML, CSS, JavaScript portions licensed CC0
+-->
+<head>
+	<title>Framework AJAX unit tests</title>
+	<link rel="stylesheet" href="//code.jquery.com/qunit/qunit-1.10.0.css">
+	<script src="framework.js"></script>
+	<script src="framework-ajax.js"></script>
+</head>
+<body>
+	<div id="qunit"></div>
+	<script src="//code.jquery.com/qunit/qunit-1.10.0.js"></script>
+<script>
+/* Unit tests begin here */
+
+asyncTest("AJAX: ajaxGet (asynchronous)", 1, function() {
+	var response = null;
+	$.ajaxGet(window.location.href, {
+		onsuccess: function(xhr) {
+			response = xhr.responseText;
+		},
+		oncomplete: function(xhr) {
+			ok(response, 'Got HTML response from asynchronous GET operation');
+			start();
+		}
+	});
+});
+
+test("AJAX: ajaxGet (synchronous)", function() {
+	var response = $.ajaxGet(window.location.href, { async: false	});
+	ok(response.responseText, 'Got HTML response from synchronous GET operation');
+});
+
+asyncTest("AJAX: ajaxGet (error scenario)", 2, function() {
+	var response = null;
+	$.ajaxGet('skdhfdjklshfdskjfds', {
+		onerror: function(xhr) {
+			notEqual(xhr.status, 200, 'Got non-200 response from asynchronous GET operation: ' + xhr.status);
+			response = xhr.statusText;
+		},
+		oncomplete: function(xhr) {
+			ok(response, 'Got status response from asynchronous GET operation: ' + response);
+			start();
+		}
+	});
+});
+
+asyncTest("AJAX: ajaxPost (asynchronous)", 1, function() {
+	var response = null;
+	$.ajaxPost(window.location.href, 'Test POST body', {
+		onsuccess: function(xhr) {
+			response = xhr.responseText;
+		},
+		onerror: function(xhr) {
+			// common scenario: server doesn't allow POST to this doc so 405 happens
+			ok(false, 'Got non-200 response from asynchronous POST operation: ' + xhr.status);
+		},
+		oncomplete: function(xhr) {
+			ok(response, 'Got HTML response from asynchronous POST operation');
+			start();
+		}
+	});
+});
+
+test("AJAX: ajaxPost (synchronous)", function() {
+	var response = $.ajaxPost(window.location.href, 'Test POST body', { async: false });
+	ok(response.responseText, 'Got HTML response from synchronous POST operation');
+});
+
+asyncTest("AJAX: ajaxPost (error scenario)", 2, function() {
+	var response = null;
+	$.ajaxPost('skdhfdjklshfdskjfds', 'Test POST body', {
+		onerror: function(xhr) {
+			notEqual(xhr.status, 200, 'Got non-200 response from asynchronous POST operation: ' + xhr.status);
+			response = xhr.statusText;
+		},
+		oncomplete: function(xhr) {
+			ok(response, 'Got status response from asynchronous POST operation: ' + response);
+			start();
+		}
+	});
+});
+
+/* Unit tests end here */
+</script>
+</body>
+</html>

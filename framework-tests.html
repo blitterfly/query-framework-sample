@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="en">
+<!--
+	Written by Havi Sullivan <http://havisullivan.com>
+	HTML, CSS, JavaScript portions licensed CC0
+-->
+<head>
+	<title>Framework unit tests</title>
+	<link rel="stylesheet" href="//code.jquery.com/qunit/qunit-1.10.0.css">
+	<script src="framework.js"></script>
+</head>
+<body>
+	<div id="qunit"></div>
+	<div id="test" style="display:none">
+		<ul>
+			<li id="item1" class="item">Item 1</li>
+			<li id="item2" class="item">Item 2</li>
+			<li id="item3" class="item">Item 3</li>
+			<li id="item4" class="item">Item 4</li>
+		</ul>
+		<p id="classes" class="class_a class_b class_c">Some text</p>
+		<ol id="ol1">
+			<li id="oitem1" class="oitem">Item 1</li>
+			<li id="oitem2" class="oitem">Item 2</li>
+			<li id="oitem3" class="oitem">Item 3</li>
+		</ol>
+		<ol id="ol2">
+			<li id="oitem4" class="oitem">Item 1</li>
+			<li id="oitem5" class="oitem">Item 2</li>
+			<li id="oitem6" class="oitem">Item 3</li>
+		</ol>
+		<p id="manip"></p>
+		<p id="manipbucket"></p>
+		<p id="attr" align="center"></p>
+		<p id="style"></p>
+	</div>
+	<script src="//code.jquery.com/qunit/qunit-1.10.0.js"></script>
+<script>
+/* Unit tests begin here */
+test("Object definition", function() {
+	expect(4);
+	
+	strictEqual(typeof $, 'function', 'Initializer defined (1)');
+	strictEqual($, QueryFramework, 'Initializer defined (2)');
+	ok(QueryFramework() instanceof QueryFramework, 'Expected QueryFramework object returned from QueryFramework');
+	ok($() instanceof QueryFramework, 'Expected QueryFramework object returned from $');
+});
+
+test("Query selectors", function() {
+	expect(3);
+	
+	var returned$ = $('.item');
+	equal(returned$.length, 4, 'Simple class selector');
+	
+	returned$ = $('#item1');
+	equal(returned$.length, 1, 'Simple ID selector');
+	
+	returned$ = $('#test > ul li[class]:first-child');
+	equal(returned$.length, 1, 'Complex selector');
+});
+
+test("Root node selector", function() {
+	expect(3);
+	
+	var root$ = $();
+	equal(root$.length, 1, 'Root node selected');
+	equal(root$.getFirst(), document, 'Root node is document');
+	equal(root$.children().getFirst().tagName.toUpperCase(), 'HTML', 'Root node is HTML tag');	
+});
+
+test("Scoped query selectors", function() {
+	expect(6);
+	
+	var returned$ = $('#ol1');
+	equal(returned$.length, 1, '(Single) Simple ID selector');
+	
+	var returned2$ = $('.oitem', returned$);
+	equal(returned2$.length, 3, '(Single) Scoped simple class selector');
+	
+	returned2$ = $('li[class=\'oitem\']', returned$);
+	equal(returned2$.length, 3, '(Single) Scoped complex selector');
+	
+	returned$ = $('#ol1, #ol2');
+	equal(returned$.length, 2, '(Multiple) Simple ID selector');
+	
+	returned2$ = $('li', returned$);
+	equal(returned2$.length, 6, '(Multiple) Scoped simple tag name selector');
+	
+	returned2$ = $('li[class]:first-child', returned$);
+	equal(returned2$.length, 2, '(Multiple) Scoped complex selector');
+});
+
+test("Node stuffing", function() {
+	expect(8);
+	
+	var elem = document.getElementById('test');
+	ok(elem instanceof Element, 'Got Element');
+	
+	var stuffed$ = $(elem);
+	equal(stuffed$.length, 1, 'Stuffed collection has 1 element');
+	
+	var elems = document.getElementsByTagName('li');
+	ok($.isNodeList(elems), 'Got NodeList');
+	stuffed$ = $(elems);
+	equal(stuffed$.length, elems.length, 'Stuffed collection has ' + elems.length + ' elements');
+	
+	var arr = [];
+	for (var i = 0; i < elems.length; i++) {
+		arr.push(elems[i]);
+	}
+	ok(Array.isArray(arr), 'Got Array');
+	stuffed$ = $(arr);
+	equal(stuffed$.length, arr.length, 'Stuffed collection has ' + arr.length + ' elements');
+	
+	var query$ = $('.item');
+	ok(query$ instanceof QueryFramework, 'Got QueryFramework');
+	stuffed$ = $(query$);
+	equal(stuffed$.length, query$.length, 'Stuffed collection has ' + query$.length + ' elements');
+});
+
+test("Node access", function() {
+	expect(5);
+	
+	var returned$ = $('.item');
+	equal(returned$.length, 4, 'Get items as selected query');
+	
+	var nodes = returned$.get();
+	ok(Array.isArray(nodes), 'Get items as array');
+	equal(nodes.length, 4, 'Same number of items in array as query');
+	
+	var node = nodes[0];
+	ok(node.nodeType === 1, 'Get first node');
+	equal(node.className, 'item', 'Check node matches original query class');
+});
+
+test("Document / window selection", function() {
+	expect(6);
+	
+	var doc$ = $(document);
+	equal(doc$.length, 1, 'Got document node');
+	equal(doc$.getFirst(), document, 'Selected node is document');
+	equal(doc$.children().getFirst().tagName.toUpperCase(), 'HTML', 'Child of document is HTML element');
+	
+	var win$ = $(window);
+	equal(win$.length, 1, 'Got window');
+	equal(win$.getFirst(), window, 'Selected node is window');
+	equal(win$.children().getFirst().tagName.toUpperCase(), 'HTML', 'Child of window is HTML element');
+});
+
+/*
+ * Attributes tests
+ */
+test("Attributes: attr (get)", function() {
+	expect(3);
+	
+	var att$ = $('#attr');
+	equal(att$.length, 1, 'Got test element');
+	
+	var attValue = att$.attr('align');
+	strictEqual(attValue, 'center', 'Value of ALIGN is "CENTER"');
+	
+	attValue = att$.attr('doesnotexist');
+	strictEqual(attValue, null, 'Value of DOESNOTEXIST is null');
+});
+
+test("Attributes: attr (set)", function() {
+	expect(6);
+	
+	var node = document.getElementById('attr');
+	ok(node, 'Got test element (node)');
+	
+	var att$ = $('#attr');
+	equal(att$.length, 1, 'Got test element (QueryFramework)');
+	
+	var attValue = node.getAttribute('align');
+	strictEqual(attValue, 'center', 'Value of ALIGN is "CENTER"');
+	att$.attr('align', 'right');
+	attValue = node.getAttribute('align');
+	strictEqual(attValue, 'right', 'Value of ALIGN changed to "RIGHT"');
+	
+	attValue = node.getAttribute('willexist');
+	ok(!!attValue === false, 'Value of WILLEXIST is null');
+	att$.attr('willexist', 'true');
+	attValue = node.getAttribute('willexist');
+	strictEqual(attValue, 'true', 'Value of WILLEXIST added as "TRUE"');
+	
+	// reset
+	node.setAttribute('align', 'center');
+	node.removeAttribute('willexist');
+});
+
+/*
+ * CSS tests
+ */
+
+test("CSS: addClass / hasClass / removeClass", function() {
+	expect(3);
+	
+	var item$ = $('.item');
+	ok(!item$.hasClass('foobar'), 'hasClass : Items do not have class foobar');
+
+	item$.addClass('foobar');
+	ok(item$.hasClass('foobar'), 'addClass : Items have class foobar');
+
+	item$.removeClass('foobar');
+	ok(!item$.hasClass('foobar'), 'removeClass : Items no longer have class foobar');
+});
+
+test("CSS: hasClass / removeClass / toggleClass", function() {
+	expect(6);
+	
+	var item$ = $('.item');
+	ok(!item$.hasClass('newbie'), 'hasClass : Items do not have class newbie');
+	item$.toggleClass('newbie');
+	ok(item$.hasClass('newbie'), 'toggleClass : Items have class newbie');
+	
+	ok(item$.first().hasClass('newbie'), 'hasClass : First item has class newbie');
+	item$.first().toggleClass('newbie');
+	ok(item$.hasClass('newbie'), 'toggleClass : Some items have class newbie');
+	ok(!$('#item1').hasClass('newbie'), 'toggleClass : First item does not have class newbie');
+
+	item$.removeClass('newbie');
+	ok(!item$.hasClass('newbie'), 'removeClass : Items do not have class newbie');
+});
+
+test("CSS: classes", function() {
+	expect(8);
+	
+	var classes = $('.item').classes();
+	ok(Array.isArray(classes), '(Single) Classes returned as array');
+	equal(classes.length, 1, '(Single) Returned 1 class name');
+	equal(classes[0], 'item', '(Single) Returned expected class name "item"');
+	
+	classes = $('#classes').classes();
+	ok(Array.isArray(classes), '(Multiple) Classes returned as array');
+	equal(classes.length, 3, '(Multiple) Returned 3 class names');
+	equal(classes[0], 'class_a', '(Multiple) Returned expected class name "class_a"');
+	equal(classes[1], 'class_b', '(Multiple) Returned expected class name "class_b"');
+	equal(classes[2], 'class_c', '(Multiple) Returned expected class name "class_c"');
+});
+
+test("CSS: style", function() {
+	expect(5);
+	
+	// reset
+	var p = document.getElementById('style');
+	p.removeAttribute('style');
+	
+	// set new style
+	var p$ = $('#style');
+	ok(!!p$.style() === false, 'No styles defined');
+	p$.style('text-align', 'center');
+	ok(!!p$.style() === true, 'Styles defined');
+	var textAlign = p$.style('text-align');
+	strictEqual(textAlign, 'center', 'text-align property is "center"');
+	
+	// remove existing style
+	p$.style('text-align', null);
+	textAlign = p$.style('text-align');
+	ok(!!textAlign === false, 'text-align property removed');
+	
+	// add style with weight
+	p$.style('color', 'red !important');
+	var color = p$.style('color');
+	ok(color && color.indexOf('red') > -1 && color.indexOf('!important') > -1, 'color property is "red !important"');
+});
+
+/*
+ * Manpulation tests
+ */
+test("Manipulation: append", function() {
+	expect(10);
+	
+	// reset
+	document.getElementById('manip').innerHTML = '';
+	document.getElementById('manipbucket').innerHTML = '';
+
+	var manip$ = $('#manip');
+	var spans$ = $('span', manip$);
+	
+	// initial
+	strictEqual(spans$.length, 0, 'Element is currently empty');
+	document.getElementById('manip').innerHTML = '<span>first child</span>';
+	spans$ = $('span', manip$);
+	strictEqual(spans$.length, 1, 'Element has one node');
+	
+	// with strings
+	manip$.append('<span id="span1">insert 1</span>');
+	spans$ = $('span', manip$);
+	strictEqual(spans$.length, 2, 'SPAN inserted by string');
+	ok(manip$.children().getLast().id == 'span1', 'SPAN inserted by string at end of block');
+	
+	// with node
+	var span = document.createElement('SPAN');
+	span.id = 'span2';
+	span.innerHTML = 'insert 2';
+	manip$.append(span);
+	spans$ = $('span', manip$);
+	strictEqual(spans$.length, 3, 'SPAN inserted by Node');
+	ok(manip$.children().getLast().id == 'span2', 'SPAN inserted by Node at end of block');
+	
+	// with node list
+	document.getElementById('manipbucket').innerHTML = '<span id="span3">insert 3</span><span id="span4">insert 4</span>';
+	var spans = document.getElementById('manipbucket').getElementsByTagName('span');
+	manip$.append(spans);
+	spans$ = $('span', manip$);
+	strictEqual(spans$.length, 5, 'SPANs inserted by NodeList');
+	ok(manip$.children().at(-2).id == 'span3' && manip$.children().getLast().id == 'span4', 'SPANs inserted by NodeList at end of block');
+	
+	// with query framework
+	document.getElementById('manipbucket').innerHTML = '<span id="span5">insert 5</span><span id="span6">insert 6</span>';
+	var spans2$ = $('#manipbucket span');
+	manip$.append(spans2$);
+	spans$ = $('span', manip$);
+	strictEqual(spans$.length, 7, 'SPAN inserted by QueryFramework');
+	ok(manip$.children().at(-2).id == 'span5' && manip$.children().getLast().id == 'span6', 'SPANs inserted by QueryFramework at end of block');
+
+});
+
+test("Manipulation: prepend", function() {
+	expect(10);
+
+	// reset
+	document.getElementById('manip').innerHTML = '';
+	document.getElementById('manipbucket').innerHTML = '';
+	
+	var manip$ = $('#manip');
+	var spans$ = $('span', manip$);
+	
+	// initial
+	strictEqual(spans$.length, 0, 'Element is currently empty');
+	document.getElementById('manip').innerHTML = '<span>first child</span>';
+	spans$ = $('span', manip$);
+	strictEqual(spans$.length, 1, 'Element has one node');
+	
+	// with strings
+	manip$.prepend('<span id="span1">insert 1</span>');
+	spans$ = $('span', manip$);
+	strictEqual(spans$.length, 2, 'SPAN inserted by string');
+	ok(manip$.children().getFirst().id == 'span1', 'SPAN inserted by string at beginning of block');
+	
+	// with node
+	var span = document.createElement('SPAN');
+	span.id = 'span2';
+	span.innerHTML = 'insert 2';
+	manip$.prepend(span);
+	spans$ = $('span', manip$);
+	strictEqual(spans$.length, 3, 'SPAN inserted by Node');
+	ok(manip$.children().getFirst().id == 'span2', 'SPAN inserted by Node at beginning of block');
+	
+	// with node list
+	document.getElementById('manipbucket').innerHTML = '<span id="span3">insert 3</span><span id="span4">insert 4</span>';
+	var spans = document.getElementById('manipbucket').getElementsByTagName('span');
+	manip$.prepend(spans);
+	spans$ = $('span', manip$);
+	strictEqual(spans$.length, 5, 'SPANs inserted by NodeList');
+	ok(manip$.children().getFirst().id == 'span3' && manip$.children().at(1).id == 'span4', 'SPANs inserted by NodeList at beginning of block');
+	
+	// with query framework
+	document.getElementById('manipbucket').innerHTML = '<span id="span5">insert 5</span><span id="span6">insert 6</span>';
+	var spans2$ = $('#manipbucket span');
+	manip$.prepend(spans2$);
+	spans$ = $('span', manip$);
+	strictEqual(spans$.length, 7, 'SPAN inserted by QueryFramework');
+	ok(manip$.children().getFirst().id == 'span5' && manip$.children().at(1).id == 'span6', 'SPANs inserted by QueryFramework at beginning of block');
+
+});
+
+test("Manipulation: html", function() {
+	expect(4);
+	
+	// reset
+	document.getElementById('manip').innerHTML = '';
+	document.getElementById('manipbucket').innerHTML = '';
+	
+	var manip$ = $('#manip');
+	var spans$ = $('span', manip$);
+	
+	// initial
+	strictEqual(spans$.length, 0, 'Element is currently empty');
+	
+	// get (1)
+	var html = manip$.html();
+	ok(!!html === false, 'get: Element is currently empty');
+	
+	// set
+	html = '<span id="span1">insert 1</span><span id="span2">insert 2</span>';
+	manip$.html(html);
+	spans$ = $('span', manip$);
+	strictEqual(spans$.length, 2, 'set: SPANs inserted');
+	
+	// get (2)
+	html = manip$.html();
+	ok(!!html === true, 'get: Element is currently non-empty');
+});
+
+/*
+ * Iteration tests
+ */
+ 
+test("Iteration: all", function() {
+	expect(2);
+	
+	var returned = $('.item').all(function(item$) {
+		return item$.hasClass('item');
+	});
+	strictEqual(returned, true, 'All items have class "item"');
+	
+	returned = $('.item').all(function(item$) {
+		return item$.getFirst().id == 'item1';
+	});
+	strictEqual(returned, false, 'Not all items have ID "item1"');
+});
+
+test("Iteration: any", function() {
+	expect(2);
+	
+	var returned = $('.item').any(function(item$) {
+		return item$.getFirst().id == 'item3';
+	});
+	strictEqual(returned, true, 'Any item has ID "item3"');
+	
+	returned = $('.item').any(function(item$) {
+		return item$.hasClass('foobaz');
+	});
+	strictEqual(returned, false, 'Any item has class "foobaz"');
+});
+
+test("Iteration: each", function() {
+	expect(9); // expect 4 * 2 assertions inside the loop, plus 1 at the end
+
+	var count = 0;
+	$('.item').each(function(item$) {
+		count++;
+		ok(item$ instanceof QueryFramework, 'Received QueryFramework object for item ' + count);
+		equal(item$.length, 1, 'Object for item ' + count + ' contains 1 element');
+	});
+	equal(count, 4, 'Iterated over 4 items');
+});
+
+/*
+ * Selection tests
+ */
+ 
+test("Selection: at / getFirst / getLast", function() {
+	expect(11);
+	
+	var items$ = $('.item');
+	equal(items$.length, 4, 'Got 4 elements');
+	
+	var item1 = items$.getFirst();
+	ok(item1.nodeType === 1, 'Item 0 is Element');
+	equal(item1.id, 'item1', 'Item 0 is item1');
+	var item1b = items$.at(0);
+	equal(item1, item1b, 'getFirst() and at(0) return same element');
+	
+	var item4 = items$.at(3);
+	ok(item4.nodeType === 1, 'Item 3 is Element');
+	equal(item4.id, 'item4', 'Item 3 is item4');
+	
+	var iteml = items$.getLast();
+	ok(iteml.nodeType === 1, 'Last item is Element');
+	equal(iteml.id, 'item4', 'Last item is item4');
+	var itemlb = items$.at(-1);
+	equal(iteml, itemlb, 'getLast() and at(-1) return same element');
+	
+	var none = items$.at(10);
+	ok(!!none === false, 'at() past end returns null');
+	none = items$.at(-10);
+	ok(!!none === false, 'at() past beginning returns null');
+	
+});
+
+test("Selection: child", function() {
+	expect(3);
+	
+	var items$ = $('#test ul, #test ol');
+	equal(items$.length, 3, 'Got 3 parent elements');
+	
+	var children$ = items$.child(3);
+	equal(children$.length, 1, 'Got 1 child of 3 parent elements (only index 3)');
+	
+	var returned = children$.all(function(item$) {
+		return item$.getFirst().tagName.toUpperCase() === 'LI';
+	});
+	ok(returned, 'All children are LI tags');
+});
+
+test("Selection: children", function() {
+	expect(3);
+	
+	var items$ = $('#test ul, #test ol');
+	equal(items$.length, 3, 'Got 3 parent elements');
+	
+	var children$ = items$.children();
+	equal(children$.length, 10, 'Got 10 children of 3 parent elements');
+	
+	var returned = children$.all(function(item$) {
+		return item$.getFirst().tagName.toUpperCase() === 'LI';
+	});
+	ok(returned, 'All children are LI tags');
+});
+
+test("Selection: first", function() {
+	expect(2);
+	
+	var first$ = $('.item').first();
+	equal(first$.length, 1, 'Received 1 element');
+	equal(first$.at(0).id, 'item1', 'Element 1 is item1');
+});
+
+test("Selection: last", function() {
+	expect(2);
+	
+	var last$ = $('.item').last();
+	equal(last$.length, 1, 'Received 1 element');
+	equal(last$.at(0).id, 'item4', 'Element 1 is item4');
+});
+
+test("Selection: getFirst", function() {
+	expect(2);
+	
+	var first = $('.item').getFirst();
+	ok(first, 'Received 1 element');
+	equal(first.id, 'item1', 'Element is item1');
+});
+
+test("Selection: getLast", function() {
+	expect(2);
+	
+	var last = $('.item').getLast();
+	ok(last, 'Received 1 element');
+	equal(last.id, 'item4', 'Element is item4');
+});
+
+test("Selection: next", function() {
+	expect(5);
+	
+	var single$ = $('#item1').next();
+	equal(single$.length, 1, '(Single) Received 1 element');
+	equal(single$.getFirst().id, 'item2', '(Single) Element 1 is item2');
+	
+	var multiple$ = $('#item1, #item3').next();
+	equal(multiple$.length, 2, '(Multiple) Received 2 elements');
+	equal(multiple$.getFirst().id, 'item2', '(Multiple) Element 1 is item2');
+	equal(multiple$.at(1).id, 'item4', '(Multiple) Element 2 is item4');
+});
+
+test("Selection: nextAll", function() {
+	expect(8);
+	
+	var single$ = $('#item1').nextAll();
+	equal(single$.length, 3, '(Single) Received 3 elements');
+	equal(single$.getFirst().id, 'item2', '(Single) Element 1 is item2');
+	equal(single$.at(1).id, 'item3', '(Single) Element 2 is item3');
+	equal(single$.at(2).id, 'item4', '(Single) Element 3 is item4');
+	
+	var multiple$ = $('.item').nextAll();
+	equal(multiple$.length, 3, '(Multiple) Received 3 elements');
+	equal(multiple$.getFirst().id, 'item2', '(Multiple) Element 1 is item2');
+	equal(multiple$.at(1).id, 'item3', '(Multiple) Element 2 is item3');
+	equal(multiple$.at(2).id, 'item4', '(Multiple) Element 3 is item4');
+});
+
+test("Selection: previous", function() {
+	expect(5);
+	
+	var single$ = $('#item3').previous();
+	equal(single$.length, 1, '(Single) Received 1 element');
+	equal(single$.getFirst().id, 'item2', '(Single) Element 1 is item2');
+	
+	var multiple$ = $('#item2, #item4').previous();
+	equal(multiple$.length, 2, '(Multiple) Received 2 elements');
+	equal(multiple$.getFirst().id, 'item1', '(Multiple) Element 1 is item1');
+	equal(multiple$.at(1).id, 'item3', '(Multiple) Element 2 is item3');
+});
+
+test("Selection: previousAll", function() {
+	expect(8);
+	
+	var single$ = $('#item4').previousAll();
+	equal(single$.length, 3, '(Single) Received 3 elements');
+	equal(single$.getFirst().id, 'item3', '(Single) Element 1 is item3');
+	equal(single$.at(1).id, 'item2', '(Single) Element 2 is item2');
+	equal(single$.at(2).id, 'item1', '(Single) Element 3 is item1');
+	
+	var multiple$ = $('.item').previousAll();
+	equal(multiple$.length, 3, '(Multiple) Received 3 elements');
+	equal(multiple$.getFirst().id, 'item1', '(Multiple) Element 1 is item1');
+	equal(multiple$.at(1).id, 'item2', '(Multiple) Element 2 is item2');
+	equal(multiple$.at(2).id, 'item3', '(Multiple) Element 3 is item3');
+});
+
+/*
+ * Event tests
+ */
+test("Events: attach / detach / fire (Mouse)", function() {
+	expect(5);
+	
+	var elem$ = $('#ol1');
+	equal(elem$.length, 1, 'Got single event target');
+	var clickCount = 0;
+	var clickEvent = function() { clickCount++; };
+	elem$.attach('click', clickEvent);
+	elem$.fire('click');
+	elem$.fire('click');
+	equal(clickCount, 2, 'Click event fired twice');
+	elem$.detach('click', clickEvent);
+	elem$.fire('click');
+	equal(clickCount, 2, 'Click event successfully detached');
+	
+	clickCount = 0;
+	var dblClickEvent = function() { clickCount++; }
+	elem$.attach('dblclick', dblClickEvent);
+	elem$.fire('dblclick');
+	equal(clickCount, 1, 'Double-click event fired');
+	elem$.detach('dblclick', dblClickEvent);
+	elem$.fire('dblclick');
+	equal(clickCount, 1, 'Double-click event successfully detached');
+});
+
+test("Events: attach / detach / fire (Non-Mouse)", function() {
+	expect(3);
+	
+	var elem$ = $('#ol1');
+	equal(elem$.length, 1, 'Got single event target');
+	var keypressCount = 0;
+	var keypressEvent = function() { keypressCount++; };
+	elem$.attach('keypress', keypressEvent);
+	elem$.fire('keypress');
+	elem$.fire('keypress');
+	equal(keypressCount, 2, 'Keypress event fired twice');
+	elem$.detach('keypress', keypressEvent);
+	elem$.fire('keypress');
+	equal(keypressCount, 2, 'Keypress event successfully detached');	
+});
+
+test("Events: attach / detach / fire (anonymous handlers)", function() {
+	expect(3);
+	
+	var elem$ = $('#ol1');
+	equal(elem$.length, 1, 'Got single event target');
+	var clickCount = 0;
+	var clickEvent1 = function() { clickCount++; };
+	var clickEvent2 = function() { clickCount++; };
+	elem$.attach('click', clickEvent1);
+	elem$.attach('click', clickEvent2);
+	elem$.fire('click');
+	equal(clickCount, 2, 'Both click events fired');
+	elem$.detach('click');
+	elem$.fire('click');
+	equal(clickCount, 2, 'Both click events successfully detached');
+});
+
+test("Events: attach / detach / fire (multiple elements)", function() {
+	expect(3);
+	
+	var elems$ = $('#ol1, #ol2');
+	equal(elems$.length, 2, 'Got two event targets');
+	
+	var clickCount = 0;
+	var clickEvent = function() { clickCount++; };
+	elems$.attach('click', clickEvent);
+	elems$.fire('click');
+	equal(clickCount, 2, 'Both click events fired');
+	
+	elems$.detach('click', clickEvent);
+	elems$.fire('click');
+	equal(clickCount, 2, 'Both click events successfully detached');
+});
+
+test("Events: bubbling", function() {
+	expect(4);
+	
+	var elem1$ = $('#ol2');
+	equal(elem1$.length, 1, 'Got single event target (1)');
+	var elem2$ = $('li:first-child', elem1$);
+	equal(elem2$.length, 1, 'Got single event target (2)');
+	
+	var clickCount = 0;
+	var clickEvent1 = function(evt) { clickCount++; };
+	var clickEvent2 = function(evt) { clickCount++; evt.cancel(); };
+	elem1$.attach('click', clickEvent1);
+	elem2$.attach('click', clickEvent2);
+	elem2$.fire('click');
+	equal(clickCount, 1, 'Secondary event successfully suppressed');
+	
+	elem1$.detach('click', clickEvent1);
+	elem2$.detach('click', clickEvent2);
+	elem1$.fire('click');
+	elem2$.fire('click');
+	equal(clickCount, 1, 'Both click events successfully detached');
+});
+
+test("Events: namespaces", function() {
+	expect(4);
+	
+	var elem$ = $('#ol2');
+	equal(elem$.length, 1, 'Got single event target');
+	
+	var clickCount = 0;
+	var clickEvent1 = function(evt) { clickCount++; };
+	var clickEvent2 = function(evt) { clickCount++; };
+	elem$.attach('click.Name1', clickEvent1);
+	elem$.attach('click.Name2', clickEvent2);
+	elem$.fire('click');
+	equal(clickCount, 2, 'Both click events fired');
+	
+	elem$.detach('click.Name1');
+	elem$.fire('click');
+	equal(clickCount, 3, 'Only .Name2 click event fired');
+	
+	elem$.detach('click');
+	elem$.fire('click');
+	equal(clickCount, 3, 'Both click events successfully detached');
+});
+
+asyncTest("Events: ready", 1, function() {
+	$(function(evt) {
+		ok(document.readyState === 'complete', 'Document is ready');
+		start();
+	});
+});
+
+/*
+ * Utility tests
+ */
+test("Utility: arrayContains", function() {
+	expect(6);
+	
+	var arr = ['blue', 'red', 'purple', 'green'];
+	ok(arr, 'Got initial array');
+	strictEqual($.arrayContains(arr, 'blue'), true, 'Array contains "blue"');
+	strictEqual($.arrayContains(arr, 'orange'), false, 'Array does not contain "orange"');
+	strictEqual($.arrayContains(arr, 'green'), true, 'Array contains "green"');
+	strictEqual($.arrayContains(arr, 'violet'), false, 'Array does not contain "violet"');
+	
+	strictEqual($.arrayContains(arr[0], 'blue'), false, 'Passing non-array results in false');
+});
+
+test("Utility: clone (primitives)", function() {
+	expect(8);
+	
+	strictEqual($.clone(4), 4, 'Clone of integer');
+	strictEqual($.clone('hello world'), 'hello world', 'Clone of string');
+	
+	var dt = new Date();
+	var dtclone = $.clone(dt);
+	notEqual(dt, dtclone, 'Clone of Date is not same');
+	equal(dt.getTime(), dtclone.getTime(), 'Clone of Date contains same time');
+	
+	var reg = /hello world/i;
+	var regclone = $.clone(reg);
+	notEqual(reg, regclone, 'Clone of RegExp is not same');
+	equal(regclone.toString(), '/hello world/i', 'Clone of RegExp contains same pattern');
+	
+	var arr = [1, 2, 3];
+	var arrclone = $.clone(arr);
+	notEqual(arr, arrclone, 'Clone of Array is not same');
+	ok(arrclone.length && arrclone[0] === 1 && arrclone[1] === 2 && arrclone[2] === 3, 'Clone of Array contains same values');
+});
+
+test("Utility: clone (objects)", function() {
+	expect(16);
+	
+	var testObj = {
+		property1: 3,
+		property2: true,
+		property3: function() { return true; }
+	};
+	
+	ok(testObj, 'Got initial test object (1)');
+	var newTestObj = $.clone(testObj);
+	ok(newTestObj, 'Got cloned object (1)');
+	notEqual(testObj, newTestObj, 'Cloned object is not same (1)');
+	equal(newTestObj.property1, 3, 'Integer value copied (1)');
+	equal(newTestObj.property2, true, 'Boolean value copied (1)');
+	ok($.isFunction(newTestObj.property3), 'Function copied (1)');
+	
+	function TestObject() {
+		this.property1 = 3;
+		this.property2 = true;	
+	};
+	TestObject.prototype = {
+		property3: function() { return true; }
+	};
+	
+	var testObj2 = new TestObject();
+	ok(testObj2, 'Got initial test object (2)');
+	ok(testObj2 instanceof TestObject, 'Initial object inherits from TestObject (2)');
+	ok(testObj2.property3 && testObj2.property3(), 'Prototype function is invokable on test object (2)');
+	var newTestObj2 = $.clone(testObj2);
+	ok(newTestObj2, 'Got cloned object (2)');
+	notEqual(testObj2, newTestObj2, 'Cloned object is not same (2)');
+	ok(newTestObj2 instanceof TestObject, 'Cloned object inherits from TestObject (2)');
+	equal(newTestObj2.property1, 3, 'Integer value copied (2)');
+	equal(newTestObj2.property2, true, 'Boolean value copied (2)');
+	ok(newTestObj2.hasOwnProperty('property3') === false, 'Prototype function NOT copied (2)');
+	ok(newTestObj2.property3 && newTestObj2.property3(), 'Protoype function is invokable on cloned object (2)');
+});
+
+test("Utility: clone (nodes)", function() {
+	expect(6);
+	
+	var node = document.createElement("div");
+	node.appendChild(document.createTextNode("Hello world"));
+	
+	ok(node, 'Got initial test node');
+	var newNode = $.clone(node);
+	ok(newNode, 'Got cloned node');
+	notEqual(node, newNode, 'Cloned node is not same');
+	equal(newNode.childNodes.length, 1, 'Cloned node contains one child');
+	equal(newNode.childNodes[0].nodeType, 3, 'Cloned child node is a text node');
+	equal(newNode.childNodes[0].textContent || newNode.childNodes[0].nodeValue, 'Hello world', 'Clond text node contains "Hello world"');
+});
+
+test("Utility: clone (deep)", function() {
+	expect(16);
+	
+	var testObj = {
+		property1: {
+			property1: 3,
+			property2: true,
+			property3: function() { return true; }
+		},
+		property2: 4,
+		property3: false,
+		property4: [
+			{ property1: 0, property2: true },
+			{ property1: 1, property2: false }
+		]
+	};
+	
+	ok(testObj, 'Got initial test object');
+	var newTestObj = $.clone(testObj);
+	ok(newTestObj, 'Got cloned object');
+	notEqual(testObj, newTestObj, 'Cloned object is not same');
+	ok(newTestObj.property1 && typeof newTestObj.property1 === 'object', 'Shallow object copied');
+	ok(newTestObj.property1 && newTestObj.property1.property1 === 3, 'Deep integer copied');
+	ok(typeof newTestObj.property1 !== 'undefined' && newTestObj.property1.property2 === true, 'Deep boolean copied');
+	ok(newTestObj.property1 && $.isFunction(newTestObj.property1.property3) && newTestObj.property1.property3(), 'Deep function copied');
+	ok(newTestObj.property2 && newTestObj.property2 === 4, 'Shallow integer copied');
+	ok(typeof newTestObj.property3 !== 'undefined' && newTestObj.property3 === false, 'Shallow boolean copied');
+	ok(newTestObj.property4 && Array.isArray(newTestObj.property4) && newTestObj.property4.length === 2, 'Shallow array copied');
+	ok(newTestObj.property4[0] && typeof newTestObj.property4[0] === 'object', 'Deep object copied (1)');
+	ok(typeof newTestObj.property4[0].property1 !== 'undefined' && newTestObj.property4[0].property1 === 0, 'Deep object - integer copied (1)');
+	ok(typeof newTestObj.property4[0].property2 !== 'undefined' && newTestObj.property4[0].property2 === true, 'Deep object - boolean copied (1)');
+	ok(newTestObj.property4[1] && typeof newTestObj.property4[1] === 'object', 'Deep object copied (2)');
+	ok(typeof newTestObj.property4[1].property1 !== 'undefined' && newTestObj.property4[1].property1 === 1, 'Deep object - integer copied (2)');
+	ok(typeof newTestObj.property4[1].property2 !== 'undefined' && newTestObj.property4[1].property2 === false, 'Deep object - boolean copied (2)');
+});
+
+test("Utility: clone (QueryFramework)", function() {
+	expect(9);
+	
+	var test$ = $('#test .item');
+	
+	ok(test$, 'Got initial test object');
+	equal(test$.length, 4, 'Got 4 items in the collection');
+	
+	var newTest$ = test$.clone();
+	ok(newTest$, 'Got cloned object');
+	notEqual(test$, newTest$, 'Cloned object is not same');
+	equal(newTest$.length, 4, 'Got 4 items in the cloned object');
+	for (var i = 0; i < test$.length; i++) {
+		equal(test$.at(i), newTest$.at(i), 'Node at index ' + i + ' is same');
+	}
+});
+
+test("Utility: createUUID", function() {
+	expect(200);
+	
+	var uuids = [];
+	for (var i = 0; i < 100; i++) {
+		var uuid = $.createUUID();
+		ok(uuid, 'Got UUID (' + i + ')');
+		strictEqual($.arrayContains(uuids, uuid), false, 'UUID is unique (' + i + ')');
+		uuids.push(uuid);
+	}
+});
+
+test("Utility: isElement", function() {
+	expect(4);
+	
+	var elem = document.createElement('div');
+	var text = document.createTextNode('Hello world');
+	var notNode = 'Hello world';
+	
+	strictEqual($.isElement(document), false, 'Document node is not an element');
+	strictEqual($.isElement(elem), true, 'DIV tag is an element');
+	strictEqual($.isElement(text), false, 'Text node is not an element');
+	strictEqual($.isElement(notNode), false, 'Non-node is not an element');
+});
+
+test("Utility: isFunction", function() {
+	expect(5);
+	
+	var obj = { };
+	var func = function() { };
+	var notFunc = 'Hello world';
+	
+	strictEqual($.isFunction(obj), false, 'Object is not a function');
+	strictEqual($.isFunction(func), true, 'Function is a function');
+	strictEqual($.isFunction(document.getElementsByTagName), true, 'Native getElementsByTagName is a function (known failure on IE8)');
+	strictEqual($.isFunction(document.childNodes), false, 'Native childNodes is not a function');
+	strictEqual($.isFunction(notFunc), false, 'Non-function is not a function');
+});
+
+test("Utility: isNodeList", function() {
+	expect(5);
+	
+	var nodeList = document.getElementsByTagName('div');
+	var nodeArray = [ document.createElement('div'), document.createElement('div') ];
+	var node = document.createElement('div');
+	var notNode = 'Hello world';
+	
+	strictEqual($.isNodeList(document.childNodes), true, 'childNodes property is a NodeList');
+	strictEqual($.isNodeList(nodeList), true, 'Return from getElementsByTagName is a NodeList');
+	strictEqual($.isNodeList(nodeArray), false, 'Array of nodes is not a NodeList');
+	strictEqual($.isNodeList(node), false, 'Single node is not a NodeList');
+	strictEqual($.isNodeList(notNode), false, 'Non-node is not a NodeList');
+});
+
+test("Utility: isNode", function() {
+	expect(5);
+	
+	var elem = document.createElement('div');
+	var text = document.createTextNode('Hello world');
+	var notNode = 'Hello world';
+	
+	strictEqual($.isNode(document), true, 'Document node is a Node');
+	strictEqual($.isNode(elem), true, 'DIV tag is a Node');
+	strictEqual($.isNode(text), true, 'Text node is a Node');
+	strictEqual($.isNode(document.childNodes), false, 'NodeList is not a Node');
+	strictEqual($.isNode(notNode), false, 'Non-node is not a Node');
+});
+
+test("Utility: isWindow", function() {
+	expect(4);
+	
+	var notWindow = 'Hello world';
+	strictEqual($.isWindow(window), true, 'Window object is a window');
+	strictEqual($.isWindow(window.top), true, 'Topmost window object is a window');
+	strictEqual($.isWindow(document), false, 'Document node is not a window');
+	strictEqual($.isWindow(notWindow), false, 'Non-window is not a window');
+});
+
+test("Utility: trim", function() {
+	
+	var sleft = '  \t\t\nHello world';
+	var sright = 'Hello world\t\t\n ';
+	var sboth = '\t \t\nHello world \t\n\t ';
+	var notString = {};
+	
+	strictEqual($.trim(sleft), 'Hello world', 'Whitespace trimmed from left of string');
+	strictEqual($.trim(sright), 'Hello world', 'Whitespace trimmed from right of string');
+	strictEqual($.trim(sboth), 'Hello world', 'Whitespace trimmed from both ends of string');
+	strictEqual($.trim(notString), notString, 'Passing non-string returns original object');
+});
+/* Unit tests end here */
+</script>
+</body>
+</html>

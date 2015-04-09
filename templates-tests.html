@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<!--
+	Written by Havi Sullivan <http://havisullivan.com>
+	HTML, CSS, JavaScript portions licensed CC0
+-->
+<head>
+	<title>Framework templates unit tests</title>
+	<link rel="stylesheet" href="//code.jquery.com/qunit/qunit-1.10.0.css">
+	<style>
+		#template, #template2, #template3, #insertPoint { display: none; }
+	</style>
+	<script src="framework.js"></script>
+	<script src="framework-templates.js"></script>
+</head>
+<body>
+	<div id="qunit"></div>
+	<div id="template">
+		<p>Test template</p>
+		<p><span class="first"></span> <span class="last" style="text-decoration: underline"></span></p>
+		<img class="picture" height="16" width="16">
+		<p class="count"></p>
+	</div>
+	<div id="template2">
+		<p>Test template 2</p>
+		<p><span class="data-first"></span> <span class="data-last"></span></p>
+		<img class="data-picture" height="16" width="16">
+		<p><span class="data-first-name"></span> <span class="data-last-name"></span></p>
+		<p class="data-item-count"></p>
+	</div>
+	<div id="template3">
+		<p>Test template 3</p>
+		<h2 class="title"><span class="sub-title"></span></h2>
+		<p class="text"><span class="sub-text"></span><span class="other-text"></span></p>
+	</div>
+	<div id="insertPoint">
+	</div>
+	<script src="//code.jquery.com/qunit/qunit-1.10.0.js"></script>
+<script>
+function resetInsertPoint() {
+	var inserted = document.getElementById('insertPoint');
+	if (inserted)
+		inserted.innerHTML = '';
+}
+
+/* Unit tests begin here */
+
+test("Object definition", function() {
+	expect(3);
+	
+	strictEqual(typeof QueryFramework.TemplateObject.prototype.render, 'function', 'Template prototypes defined');
+	var t = new QueryFramework.TemplateObject();
+	ok(t instanceof QueryFramework.TemplateObject, 'Expected Template object returned (1)');
+	var t2 = QueryFramework.template();
+	ok(t2 instanceof QueryFramework.TemplateObject, 'Expected Template object returned (2)');
+});
+
+test("Simple template insertion (Single)", function() {
+	resetInsertPoint();
+	expect(2);
+	
+	var t = $('#template').template();
+	t.render('#insertPoint');
+	
+	var inserted$ = $('#insertPoint');
+	ok(inserted$, 'Found insert point');
+	equal(inserted$.children().length, 1, 'Template inserted 1 time');
+});
+
+test("Simple template insertion (Multiple)", function() {
+	resetInsertPoint();
+	expect(2);
+	
+	var t = $('#template').template();
+	t.render('#insertPoint', [ {}, {}, {} ]);
+	
+	var inserted$ = $('#insertPoint');
+	ok(inserted$, 'Found insert point');
+	equal(inserted$.children().length, 3, 'Template inserted 3 times');
+});
+
+test("Data template insertion (Single, No prefix, No munging)", function() {
+	resetInsertPoint();
+	expect(11);
+	
+	var t = $('#template').template();
+	t.render('#insertPoint', {
+		first: 'Hello',
+		last: 'World',
+		count: 2,
+		picture: '404.jpg'
+	});
+	
+	var inserted$ = $('#insertPoint');
+	ok(inserted$, 'Found insert point');
+	equal(inserted$.children().length, 1, 'Template inserted 1 time');
+	
+	var first$ = $('.first', inserted$);
+	ok(first$, 'Found "first" element');
+	equal(first$.html(), 'Hello', 'Found expected content in "first" element');
+	
+	var last$ = $('.last', inserted$);
+	ok(last$, 'Found "last" element');
+	equal(last$.html(), 'World', 'Found expected content in "last" element');
+	
+	var count$ = $('.count', inserted$);
+	ok(count$, 'Found "count" element');
+	equal(count$.html(), '2', 'Found expected content in "count" element');
+	
+	var picture$ = $('.picture', inserted$);
+	ok(picture$, 'Found "picture" element');
+	equal(picture$.getFirst().tagName.toUpperCase(), 'IMG', '"picture" element is an IMG tag');
+	ok(picture$.attr('src').indexOf('404.jpg') > -1, 'Found expected SRC attribute value in "picture" element');
+});
+
+test("Data template insertion (Single, With prefix, No munging)", function() {
+	resetInsertPoint();
+	expect(9);
+	
+	var t = $.template({ template: '#template2', classNamePrefix: 'data' });
+	t.render('#insertPoint', {
+		first: 'Hello',
+		last: 'World',
+		picture: '404.jpg'
+	});
+	
+	var inserted$ = $('#insertPoint');
+	ok(inserted$, 'Found insert point');
+	equal(inserted$.children().length, 1, 'Template inserted 1 time');
+	
+	var first$ = $('.data-first', inserted$);
+	ok(first$, 'Found "data-first" element');
+	equal(first$.html(), 'Hello', 'Found expected content in "data-first" element');
+	
+	var last$ = $('.data-last', inserted$);
+	ok(last$, 'Found "data-last" element');
+	equal(last$.html(), 'World', 'Found expected content in "data-last" element');
+	
+	var picture$ = $('.data-picture', inserted$);
+	ok(picture$, 'Found "data-picture" element');
+	equal(picture$.getFirst().tagName.toUpperCase(), 'IMG', '"picture" element is an IMG tag');
+	ok(picture$.attr('src').indexOf('404.jpg') > -1, 'Found expected SRC attribute value in "data-picture" element');
+});
+
+test("Data template insertion (Single, With prefix, With munging)", function() {
+	resetInsertPoint();
+	expect(8);
+	
+	var t = $.template({ template: '#template2', classNamePrefix: 'data' });
+	t.render('#insertPoint', {
+		firstName: 'Hello',
+		lastName: 'World',
+		itemCount: 2
+	});
+	
+	var inserted$ = $('#insertPoint');
+	ok(inserted$, 'Found insert point');
+	equal(inserted$.children().length, 1, 'Template inserted 1 time');
+	
+	var first$ = $('.data-first-name', inserted$);
+	ok(first$, 'Found "data-first-name" element');
+	equal(first$.html(), 'Hello', 'Found expected content in "data-first-name" element');
+	
+	var last$ = $('.data-last-name', inserted$);
+	ok(last$, 'Found "data-last-name" element');
+	equal(last$.html(), 'World', 'Found expected content in "data-last-name" element');
+	
+	var count$ = $('.data-item-count', inserted$);
+	ok(count$, 'Found "data-item-count" element');
+	equal(count$.html(), '2', 'Found expected content in "data-item-count" element');
+});
+
+test("Data template insertion (Multiple, No prefix, No munging)", function() {
+	resetInsertPoint();
+	expect(29);
+	
+	var t = $('#template').template();
+	var objects = [ {
+		id: 'inserted1',
+		first: 'Hello',
+		last: 'World',
+		count: 2,
+		picture: '404.jpg'
+	}, {
+		id: 'inserted2',
+		first: 'Foo',
+		last: 'Bar',
+		count: 1,
+		picture: '404-1.jpg'
+	}, {
+		id: 'inserted3',
+		first: 'Foo',
+		last: 'Baz',
+		count: 3,
+		picture: '404-2.jpg'	
+	} ];
+	t.render('#insertPoint', objects);
+	
+	var inserted$ = $('#insertPoint');
+	ok(inserted$, 'Found insert point');
+	equal(inserted$.children().length, 3, 'Template inserted 3 times');
+
+	for (var i = 0; i < objects.length; i++) {	
+		var lookfor$ = $('#' + objects[i].id, inserted$);
+		ok(lookfor$, 'Found "' + objects[i].id + '" element (' + i + ')');
+
+		var first$ = $('.first', lookfor$);
+		ok(first$, 'Found "first" element (' + i + ')');
+		equal(first$.html(), objects[i].first, 'Found expected content in "first" element (' + i + ')');
+		
+		var last$ = $('.last', lookfor$);
+		ok(last$, 'Found "last" element (' + i + ')');
+		equal(last$.html(), objects[i].last, 'Found expected content in "last" element (' + i + ')');
+		
+		var count$ = $('.count', lookfor$);
+		ok(count$, 'Found "count" element (' + i + ')');
+		equal(count$.html(), objects[i].count.toString(10), 'Found expected content in "count" element (' + i + ')');
+		
+		var picture$ = $('.picture', lookfor$);
+		ok(picture$, 'Found "picture" element (' + i + ')');
+		ok(picture$.attr('src').indexOf(objects[i].picture) > -1, 'Found expected SRC attribute value in "picture" element (' + i + ')');
+	}
+});
+
+test("Data template insertion (Multiple, With prefix, No munging)", function() {
+	resetInsertPoint();
+	expect(26);
+	
+	var t = $('#template2').template({ classNamePrefix: 'data' });
+	var objects = [ {
+		id: 'inserted1',
+		first: 'Hello',
+		last: 'World',
+		picture: '404.jpg'
+	}, {
+		id: 'inserted2',
+		first: 'Foo',
+		last: 'Bar',
+		picture: '404-1.jpg'
+	}, {
+		id: 'inserted3',
+		first: 'Foo',
+		last: 'Baz',
+		picture: '404-2.jpg'	
+	} ];
+	t.render('#insertPoint', objects);
+	
+	var inserted$ = $('#insertPoint');
+	ok(inserted$, 'Found insert point');
+	equal(inserted$.children().length, 3, 'Template inserted 3 times');
+
+	for (var i = 0; i < objects.length; i++) {	
+		var lookfor$ = $('#' + objects[i].id, inserted$);
+		ok(lookfor$, 'Found "' + objects[i].id + '" element (' + i + ')');
+
+		var first$ = $('.data-first', lookfor$);
+		ok(first$, 'Found "data-first" element (' + i + ')');
+		equal(first$.html(), objects[i].first, 'Found expected content in "data-first" element (' + i + ')');
+		
+		var last$ = $('.data-last', lookfor$);
+		ok(last$, 'Found "data-last" element (' + i + ')');
+		equal(last$.html(), objects[i].last, 'Found expected content in "data-last" element (' + i + ')');
+		
+		var picture$ = $('.data-picture', lookfor$);
+		ok(picture$, 'Found "data-picture" element (' + i + ')');
+		equal(picture$.at(0).tagName.toUpperCase(), 'IMG', '"picture" is an IMG tag element (' + i + ')');
+		ok(picture$.attr('src').indexOf(objects[i].picture) > -1, 'Found expected SRC attribute value in "data-picture" element (' + i + ')');
+	}
+});
+
+test("Data template insertion (Multiple, With prefix, With munging)", function() {
+	resetInsertPoint();
+	expect(23);
+	
+	var t = $('#template2').template({ classNamePrefix: 'data' });
+	var objects = [ {
+		id: 'inserted1',
+		firstName: 'Hello',
+		lastName: 'World',
+		itemCount: 2
+	}, {
+		id: 'inserted2',
+		firstName: 'Foo',
+		lastName: 'Bar',
+		itemCount: 1
+	}, {
+		id: 'inserted3',
+		firstName: 'Foo',
+		lastName: 'Baz',
+		itemCount: 3
+	} ];
+	t.render('#insertPoint', objects);
+	
+	var inserted$ = $('#insertPoint');
+	ok(inserted$, 'Found insert point');
+	equal(inserted$.children().length, 3, 'Template inserted 3 times');
+
+	for (var i = 0; i < objects.length; i++) {	
+		var lookfor$ = $('#' + objects[i].id, inserted$);
+		ok(lookfor$, 'Found "' + objects[i].id + '" element (' + i + ')');
+
+		var first$ = $('.data-first-name', lookfor$);
+		ok(first$, 'Found "data-first-name" element (' + i + ')');
+		equal(first$.html(), objects[i].firstName, 'Found expected content in "data-first-name" element (' + i + ')');
+		
+		var last$ = $('.data-last-name', lookfor$);
+		ok(last$, 'Found "data-last-name" element (' + i + ')');
+		equal(last$.html(), objects[i].lastName, 'Found expected content in "data-last-name" element (' + i + ')');
+		
+		var count$ = $('.data-item-count', lookfor$);
+		ok(count$, 'Found "data-item-count" element (' + i + ')');
+		equal(count$.html(), objects[i].itemCount.toString(10), 'Found expected content in "data-item-count" element (' + i + ')');
+	}
+});
+
+test("Complex template DOM", function() {
+	resetInsertPoint();
+	expect(17);
+	
+	var t = $('#template3').template();
+	var obj = {
+		title: 'Sample title',
+		subTitle: 'Sample subtitle',
+		text: 'The quick brown fox jumped over the lazy dog.',
+		subText: 'Is not that quick.'
+	};
+	t.render('#insertPoint', obj);
+	
+	var inserted$ = $('#insertPoint');
+	ok(inserted$, 'Found insert point');
+	equal(inserted$.children().length, 1, 'Template inserted 1 time');
+	
+	var title$ = $('.title', inserted$);
+	ok(title$, 'Found "title" element');
+	equal(title$.at(0).childNodes.length, 2, '"title" element has 2 children');
+	var child1 = title$.at(0).firstChild;
+	equal(child1.nodeType, 1, '"title" first child is an element');
+	equal(child1.className, 'sub-title', 'Found "sub-title" element');
+	equal(child1.innerHTML, obj.subTitle, 'Found expected content in "sub-title" element');
+	var child2 = title$.at(0).childNodes[1];
+	equal(child2.nodeType, 3, '"title" second child is a text node');
+	equal(child2.textContent || child2.nodeValue, obj.title, 'Found expected text content as child of "title" element');
+	
+	var text$ = $('.text', inserted$);
+	ok(text$, 'Found "text" element');
+	equal(text$.at(0).childNodes.length, 3, '"text" element has 3 children');
+	child1 = text$.at(0).firstChild;
+	equal(child1.nodeType, 1, '"text" first child is an element');
+	equal(child1.className, 'sub-text', 'Found "sub-text" element');
+	equal(child1.innerHTML, obj.subText, 'Found expected content in "sub-text" element');
+	child2 = text$.at(0).childNodes[1];
+	equal(child2.nodeType, 1, '"text" second child is an element');
+	var child3 = text$.at(0).childNodes[2];
+	equal(child3.nodeType, 3, '"text" third child is a text node');
+	equal(child3.textContent || child3.nodeValue, obj.text, 'Found expected text content as child of "text" element');
+});
+
+test("Node insert callback", function() {
+	resetInsertPoint();
+	expect(13);
+	
+	var t = $('#template').template();
+	var objects = [ 
+		{ first: 'Hello', last: 'World' },
+		{ first: 'Foo', last: 'Baz' }
+	];
+	var count = 0;
+	t.render('#insertPoint', objects, function(index, node$, data) {
+		count++;
+		ok(index > -1, 'Index passed to callback (' + index + ')');
+		ok(node$ instanceof QueryFramework, 'Inserted node passed to callback (' + index + ')');
+		ok(typeof data === 'object' && 'first' in data, 'Data object passed to callback (' + index + ')');
+		
+		node$.addClass('callback');
+	});
+	
+	equal(count, 2, 'Callback called 2 times');
+	
+	var inserted$ = $('#insertPoint');
+	ok(inserted$, 'Found insert point');
+	equal(inserted$.children().length, 2, 'Template inserted 2 times');
+	
+	var child1$ = inserted$.child(0);
+	ok(child1$, 'Found first child element');
+	ok(child1$.hasClass('callback'), 'First child element has "callback" class name');
+	
+	var child2$ = inserted$.child(1);
+	ok(child2$, 'Found second child element');
+	ok(child2$.hasClass('callback'), 'Second child element has "callback" class name');
+});
+
+test("Attribute specification syntax", function() {
+	resetInsertPoint();
+	expect(9);
+	
+	var t = $('#template').template();
+	t.render('#insertPoint', {
+		first: 'Hello',
+		last: 'World',
+		first$rel: 'test',
+		last$style: 'padding-right: 4px'
+	});
+	
+	var inserted$ = $('#insertPoint');
+	ok(inserted$, 'Found insert point');
+	equal(inserted$.children().length, 1, 'Template inserted 1 time');
+	
+	var first$ = $('.first', inserted$);
+	ok(first$, 'Found "first" element');
+	equal(first$.html(), 'Hello', 'Found expected content in "first" element');
+	equal(first$.attr('rel'), 'test', 'Found expected REL attribute value in "first" element');
+	
+	var last$ = $('.last', inserted$);
+	ok(last$, 'Found "last" element');
+	equal(last$.html(), 'World', 'Found expected content in "last" element');
+	equal(last$.style('padding-right'), '4px', 'Found expected STYLE attribute value in "last" element');
+	equal(last$.style('text-decoration'), 'underline', 'Original STYLE attribute value in "last" element preserved');
+});
+
+test("Remove data classes on render", function() {
+	resetInsertPoint();
+	expect(8);
+	
+	var t = $('#template').template();
+	t.render('#insertPoint', {
+		first: 'Hello'
+	});
+	
+	var inserted$ = $('#insertPoint');
+	ok(inserted$, 'Found insert point (1)');
+	equal(inserted$.children().length, 1, 'Template inserted 1 time (1)');
+	
+	var first$ = $('span', inserted$).first();
+	ok(first$, 'Found first SPAN element (1)');
+	ok(first$.hasClass('first') === true, 'Normal: CSS classes for data insertion are left behind');
+	
+	resetInsertPoint();
+	t = $('#template').template({ removeDataClasses: true });
+	t.render('#insertPoint', {
+		first: 'Hello'
+	});
+	
+	inserted$ = $('#insertPoint');
+	ok(inserted$, 'Found insert point (2)');
+	equal(inserted$.children().length, 1, 'Template inserted 1 time (2)');
+	
+	first$ = $('span', inserted$).first();
+	ok(first$, 'Found first SPAN element (2)');
+	ok(first$.hasClass('first') === false, 'CSS classes for data insertion removed when options.removeDataClasses is true');
+});
+
+/* Unit tests end here */
+</script>
+</body>
+</html>
